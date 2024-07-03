@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <iomanip> 
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <vector>
 
@@ -12,7 +12,7 @@ class CheerManager {
 public:
     //Функция вносит прогресс по конкретному пользовотелю и обнавляет общую статистику
     void AddUserProgres(int user_id, int page) {
-        if (users_read_progres_.find(user_id) == users_read_progres_.end()) {
+        if (users_read_progres_.count(user_id) == 0) {
             users_read_progres_.emplace(std::move(user_id), page);
             UpdateOverallUsersProgres(0, std::move(page));
             return;
@@ -25,7 +25,7 @@ public:
     //Функция для подбадривания конкретного пользователя
     void CheerUser(int user_id, std::ostream& output) const {
         // Проверка, есть ли пользователь в базе:
-        if ((users_read_progres_.size() == 0) || (users_read_progres_.find(user_id) == users_read_progres_.end())) {
+        if ((users_read_progres_.size() == 0) || (users_read_progres_.count(user_id) == 0)) {
             output << 0 << '\n';
             return;
         }
@@ -34,13 +34,8 @@ public:
             output << 1 << '\n';
             return;
         }
-        // Вычисление доли пользователей (без учета запрашиваемого) с прогрессом ниже текущего пользователя:
-        // 1. Исключаем запрашиваемого пользователя из статистики
-        int users_count_without_current_user = users_read_progres_.size() - 1;
-        // 2. производим основные статистические вычисления (преобразуем числитель в double умнажением ни 1.0) и выводим результат.
-        std::cout << (users_read_progres_.size() - users_on_each_page_count_.at(users_read_progres_.at(user_id))) * 1.0 /* Количество людей с прогрессом ниже*/
-                                                        / 
-                                    users_count_without_current_user << '\n'; /* Количество пользователей (без учета запрашиваемого)*/
+        // Выводим долю пользователей (без учета запрашиваемого) с прогрессом ниже текущего пользователя:
+        std::cout << CalcFractionOfUsersWithLowerProgress(user_id) << '\n';
         return;
     }
 
@@ -57,7 +52,16 @@ private:
         return;
     }
 
-    std::map<int, int> users_read_progres_;
+    double CalcFractionOfUsersWithLowerProgress(int user_id) const {
+        // Вычисление доли пользователей (без учета запрашиваемого) с прогрессом ниже текущего пользователя:
+        // 1. Исключаем запрашиваемого пользователя из статистики
+        int users_count_without_current_user = users_read_progres_.size() - 1;
+        // 2. Производим основные статистические вычисления и возвращаем результат по формуле:
+        // Количество пользователей (без учета запрашиваемого) / Количество людей с прогрессом ниже
+        return (static_cast<double>(users_read_progres_.size() - users_on_each_page_count_.at(users_read_progres_.at(user_id))) / users_count_without_current_user); 
+    }
+
+    std::unordered_map<int, int> users_read_progres_;
     std::vector<int> users_on_each_page_count_;
 };
 
